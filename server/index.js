@@ -32,6 +32,9 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: (origin, callback) => {
+        // --- ADD THIS LINE FOR DEBUGGING ---
+        console.log('DEBUG: Incoming request origin:', origin); 
+        
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
