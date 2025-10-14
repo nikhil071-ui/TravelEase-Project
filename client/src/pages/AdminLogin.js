@@ -13,7 +13,7 @@ const AdminLogin = () => {
         setError('');
         setLoading(true);
         try {
-            const response = await fetch('https://travel-ease-project.vercel.app/admin/login', {
+            const response = await fetch('https://travel-ease-project.vercel.app/api/admin/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
