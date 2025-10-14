@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 5000;
 // --- Middleware ---
 // This allows your Vercel frontend to make requests to your Render backend
 const corsOptions = {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000'
+    origin: process.env.CLIENT_URL || 'https://travel-ease-project.vercel.app/'
 };
 app.use(cors(corsOptions));
 app.use(express.json());
