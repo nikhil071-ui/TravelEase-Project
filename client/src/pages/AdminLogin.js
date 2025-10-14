@@ -8,12 +8,14 @@ const AdminLogin = () => {
     const [loading, setLoading] = useState(false); // ✅ FIX: Corrected to a single equals sign
     const navigate = useNavigate();
 
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/admin/login', {
+             const response = await fetch(`${apiUrl}/api/admin/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
