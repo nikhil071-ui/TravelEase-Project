@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://www.google.com/search?q=https://travelease-api.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export const useAdminApi = () => {
     const [data, setData] = useState({
