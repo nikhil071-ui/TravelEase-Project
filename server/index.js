@@ -4,8 +4,11 @@ require('dotenv').config(); // Loads environment variables from .env file
 const admin = require('firebase-admin');
 const path = require('path');
 
+// --- NEW: Debugging log for environment variables ---
+console.log("SERVER STARTING: Attempting to use CLIENT_URL:", process.env.CLIENT_URL);
+
+
 // --- Firebase Initialization ---
-// Make sure your serviceAccountKey.json is in the root of the 'server' folder
 try {
     const serviceAccount = require('./serviceAccountKey.json');
     admin.initializeApp({
@@ -20,13 +23,28 @@ try {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// --- Middleware ---
-// This allows your Vercel frontend to make requests to your Render backend
+// --- UPDATED: More robust CORS configuration ---
+// This explicitly lists the websites that are allowed to connect to your API.
+const allowedOrigins = [
+    'http://localhost:3000', // For your local development
+    process.env.CLIENT_URL   // The URL of your live Vercel site
+];
+
 const corsOptions = {
-    origin: process.env.CLIENT_URL || 'https://travel-ease-project.vercel.app/'
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    }
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
+
 
 // --- API Route Imports ---
 const adminRoutes = require('./routes/adminRoutes');
