@@ -379,18 +379,19 @@ const BookingForm = () => {
                 gstInfo: { type: gstLabel, rate: gstRate, amount: gstAmount },
                 discountInfo: { code: couponCode, amount: discount }
             };
-            await addDoc(collection(db, 'bookings'), newBooking);
-            
-            // --- ADDED BACK: Email sending logic ---
-            await fetch(`${apiUrl}/api/email/send-confirmation`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: user.email,
-                    subject: `Your Flight Booking for "${newBooking.airline}" is Confirmed!`,
-                    bookingDetails: newBooking
-                })
-            });
+           // Improved code - Responds instantly
+await addDoc(collection(db, 'bookings'), newBooking);
+setIsSuccessModalOpen(true); // Show success to the user right away!
+
+// Send the email in the background. We don't wait for it.
+fetch(`${apiUrl}/api/email/send-confirmation`, { /* ... */ })
+    .then(response => {
+        if (!response.ok) console.error('Background email failed to send.');
+    })
+    .catch(err => {
+        // Log the error for your own records, the user doesn't need to know.
+        console.error('Background email dispatch error:', err);
+    });
 
             setIsSuccessModalOpen(true);
         } catch (err) {
