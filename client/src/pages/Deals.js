@@ -70,6 +70,8 @@ const Deals = () => {
 
     const [filterType, setFilterType] = useState('all');
     const [sortType, setSortType] = useState('price-asc');
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 
     useEffect(() => {
         const fetchDeals = async () => {
@@ -77,8 +79,8 @@ const Deals = () => {
             setError('');
             try {
                 const [flightsRes, busesRes] = await Promise.all([
-                    fetch('http://localhost:5000/api/flights'),
-                    fetch('http://localhost:5000/api/buses')
+                    fetch(`${apiUrl}/api/flights`),
+                    fetch(`${apiUrl}/api/buses`)
                 ]);
 
                 if (!flightsRes.ok || !busesRes.ok) {
