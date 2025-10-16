@@ -1,12 +1,10 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config(); // Loads environment variables from .env file
+require('dotenv').config();
 const admin = require('firebase-admin');
 const path = require('path');
 
-// --- NEW: Debugging log for environment variables ---
-console.log("SERVER STARTING: Attempting to use CLIENT_URL:", process.env.CLIENT_URL);
-
+console.log("SERVER STARTING: Raw CLIENT_URL from env:", process.env.CLIENT_URL);
 
 // --- Firebase Initialization ---
 try {
@@ -23,29 +21,31 @@ try {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// --- UPDATED: More robust CORS configuration ---
-// This explicitly lists the websites that are allowed to connect to your API.
+// --- FINAL, ROBUST CORS FIX ---
+// This handles potential typos or extra slashes in the environment variables.
+const clientUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '') : 'http://localhost:3000';
+console.log("SERVER CONFIG: Allowing connections from origin:", clientUrl);
+
 const allowedOrigins = [
-    'http://localhost:3000', // For your local development
-    process.env.CLIENT_URL   // The URL of your live Vercel site
+    'http://localhost:3000',
+    clientUrl 
 ];
 
 const corsOptions = {
     origin: (origin, callback) => {
-        // --- ADD THIS LINE FOR DEBUGGING ---
-        console.log('DEBUG: Incoming request origin:', origin); 
-        
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.error(`CORS Error: Request from origin '${origin}' was blocked.`);
             callback(new Error('Not allowed by CORS'));
         }
     }
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+// --- END OF FIX ---
 
+app.use(express.json());
 
 // --- API Route Imports ---
 const adminRoutes = require('./routes/adminRoutes');
@@ -61,9 +61,6 @@ app.use('/api/buses', busRoutes);
 app.use('/api', dataRoutes);
 app.use('/api/email', emailRoutes);
 
-// --- NOTE: The section for serving the frontend build has been removed ---
-// This server is now a dedicated API, as required by Render.
-
 // --- Final Error Handling Middleware ---
 app.use((err, req, res, next) => {
     console.error("An unhandled error occurred:", err);
@@ -75,3 +72,4 @@ app.listen(PORT, () => {
     console.log(`🚀 Server is running and listening on http://localhost:${PORT}`);
 });
 
+module.exports = app;
