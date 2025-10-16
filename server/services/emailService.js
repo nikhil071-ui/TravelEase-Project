@@ -1,28 +1,41 @@
-const nodemailer = require('nodemailer');
+// server/services/emailService.js
 
-// Initialize the transporter once and export it
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+
+// Configure the Brevo API client
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications['api-key'];
+apiKey.apiKey = process.env.BREVO_API_KEY; // We will add this to Render
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
 /**
- * A reusable function to send emails.
- * @param {object} mailOptions - The options for the email (to, subject, html, attachments).
+ * A reusable function to send emails using Brevo.
+ * @param {object} mailOptions - The options for the email (to, subject, html).
  */
 const sendEmail = async (mailOptions) => {
     try {
-        await transporter.sendMail({
-            from: `"TravelEase" <${process.env.EMAIL_USER}>`,
-            ...mailOptions,
-        });
-        console.log(`Email sent successfully to ${mailOptions.to}`);
+        // Set the sender
+        sendSmtpEmail.sender = { 
+            name: "TravelEase", 
+            email: process.env.EMAIL_USER // This should be the email you verified with Brevo
+        };
+
+        // Set the recipient(s)
+        sendSmtpEmail.to = [{ email: mailOptions.to }];
+        
+        // Set email content
+        sendSmtpEmail.subject = mailOptions.subject;
+        sendSmtpEmail.htmlContent = mailOptions.html;
+
+        // Send the email
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+        console.log(`Email sent successfully to ${mailOptions.to} via Brevo.`);
+
     } catch (error) {
         console.error(`Error sending email to ${mailOptions.to}:`, error);
-        // We throw the error so the controller can handle it
         throw new Error('Failed to send email.');
     }
 };
