@@ -119,6 +119,7 @@ const BookingForm = () => {
     const [bannerPosition, setBannerPosition] = useState({ top: '50%', left: '50%' });
     const [availableCoupons, setAvailableCoupons] = useState([]);
     const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
     const generateUniqueTicketCode = async () => {
         let ticketCode;
@@ -381,7 +382,7 @@ const BookingForm = () => {
             await addDoc(collection(db, 'bookings'), newBooking);
             
             // --- ADDED BACK: Email sending logic ---
-            await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/email/send-confirmation`, {
+            await fetch(`${apiUrl}/api/email/send-confirmation`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
