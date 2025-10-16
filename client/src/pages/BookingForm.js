@@ -5,7 +5,7 @@ import { auth, db } from '../firebase';
 import { collection, doc, getDoc, addDoc, serverTimestamp, query, where, getDocs, limit } from 'firebase/firestore';
 import SeatChart from '../components/SeatChart';
 import Modal from '../components/Modal';
-import { Plane, User, ShieldCheck, CreditCard, Users, Briefcase, CheckCircle, Ticket, X, Gift, Loader2, ArrowRight } from 'lucide-react';
+import { Plane, User, ShieldCheck, CreditCard, Users, Briefcase, CheckCircle, Ticket, X, Gift, Loader2, ArrowRight, PlusCircle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Sub-Components ---
@@ -119,7 +119,7 @@ const BookingForm = () => {
     const [bannerPosition, setBannerPosition] = useState({ top: '50%', left: '50%' });
     const [availableCoupons, setAvailableCoupons] = useState([]);
     const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
-     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
     const generateUniqueTicketCode = async () => {
         let ticketCode;
@@ -316,8 +316,8 @@ const BookingForm = () => {
     };
 
     const currentStep = useMemo(() => {
-        const passenger = passengers[0];
-        const passengersComplete = !!(passenger.firstName && passenger.lastName && passenger.dob && passenger.passportNumber && passenger.passportExpiry);
+        // --- UPDATED: Check all passengers, not just the first one ---
+        const passengersComplete = passengers.every(p => p.firstName && p.lastName && p.dob && p.passportNumber && p.passportExpiry);
         const seatsSelected = selectedSeats.length === passengers.length;
         if (seatsSelected && passengersComplete) return 3;
         if (passengersComplete) return 2;
@@ -331,32 +331,74 @@ const BookingForm = () => {
         setPassengers(updated);
     };
 
-    const handleSeatSelect = (seatNumber) => {
-        setSelectedSeats(prev => (prev.includes(seatNumber) ? [] : [seatNumber]));
-        setValidationError('');
+    // --- NEW: Functions to add and remove passengers ---
+    const handleAddPassenger = () => {
+        setPassengers(prev => [...prev, { firstName: '', lastName: '', gender: 'Male', dob: '', passportNumber: '', passportExpiry: '' }]);
     };
 
+    const handleRemovePassenger = (index) => {
+        if (passengers.length > 1) { // Prevent removing the last passenger
+            setPassengers(prev => prev.filter((_, i) => i !== index));
+            // Also remove the last selected seat if it corresponds to the removed passenger
+            setSelectedSeats(prev => prev.slice(0, passengers.length - 1));
+        }
+    };
+    
+    // --- UPDATED: `handleSeatSelect` now correctly handles multiple seats ---
+    const handleSeatSelect = (seatNumber) => {
+        setSelectedSeats(prevSelected => {
+            const newSelected = [...prevSelected];
+            const seatIndex = newSelected.indexOf(seatNumber);
+
+            if (seatIndex > -1) {
+                // If seat is already selected, unselect it
+                newSelected.splice(seatIndex, 1);
+            } else {
+                // If not selected, add it, but only if we haven't reached the passenger limit
+                if (newSelected.length < passengers.length) {
+                    newSelected.push(seatNumber);
+                } else {
+                    setValidationError(`You can only select ${passengers.length} seat(s).`);
+                }
+            }
+            return newSelected;
+        });
+        // Clear validation error if the selection is now valid
+        if (selectedSeats.length < passengers.length) {
+            setValidationError('');
+        }
+    };
+
+    // --- UPDATED: `handleSubmit` has corrected logic for booking and email sending ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setValidationError('');
+
         if (!user) return setValidationError('You must be logged in to book.');
         if (!flightData) return setValidationError('Flight data is missing.');
-        if (selectedSeats.length !== passengers.length) return setValidationError(`Please select ${passengers.length} seat(s).`);
-        
-        const passenger = passengers[0];
-        if (!passenger.firstName || !passenger.lastName || !passenger.dob || !passenger.passportNumber || !passenger.passportExpiry) {
-            return setValidationError('Please fill in all passenger details.');
+        if (selectedSeats.length !== passengers.length) {
+            return setValidationError(`Please select ${passengers.length} seat(s).`);
+        }
+
+        // Validate all passengers
+        for (const passenger of passengers) {
+            if (!passenger.firstName || !passenger.lastName || !passenger.dob || !passenger.passportNumber || !passenger.passportExpiry) {
+                return setValidationError('Please fill in all details for every passenger.');
+            }
         }
         
-        const seat = selectedSeats[0];
-        const row = parseInt((seat || '0').match(/\d+/)[0], 10);
+        // Validate seat class for all selected seats
         const businessRows = [1, 2, 3];
-        const seatClass = businessRows.includes(row) ? 'business' : 'economy';
-        if (seatClass !== selectedClass) {
-            return setValidationError(`Seat ${seat} is in ${seatClass} class. Please select only ${selectedClass} class seats.`);
+        for (const seat of selectedSeats) {
+            const row = parseInt((seat || '0').match(/\d+/)[0], 10);
+            const seatClass = businessRows.includes(row) ? 'business' : 'economy';
+            if (seatClass !== selectedClass) {
+                return setValidationError(`Seat ${seat} is in ${seatClass} class. Please select only ${selectedClass} class seats.`);
+            }
         }
         
         setLoading(true);
+
         try {
             const ticketCode = await generateUniqueTicketCode();
             const newBooking = {
@@ -379,42 +421,33 @@ const BookingForm = () => {
                 gstInfo: { type: gstLabel, rate: gstRate, amount: gstAmount },
                 discountInfo: { code: couponCode, amount: discount }
             };
-// ... inside handleSubmit
-try {
-    const ticketCode = await generateUniqueTicketCode();
-    const newBooking = { /* ... your booking object ... */ };
-    await addDoc(collection(db, 'bookings'), newBooking);
 
-    // --- SOLUTION ---
-    // 1. Show success to the user IMMEDIATELY.
-    setIsSuccessModalOpen(true);
+            // 1. Save the booking to the database and WAIT for it to complete.
+            await addDoc(collection(db, 'bookings'), newBooking);
 
-    // 2. Send the email in the background. Don't wait for it.
-    fetch(`${apiUrl}/api/email/send-confirmation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            to: user.email,
-            subject: `Your Flight Booking for "${newBooking.airline}" is Confirmed!`,
-            bookingDetails: newBooking
-        })
-    }).catch(error => {
-        // If it fails, just log it. The user has already seen the success message.
-        console.error("Background email sending failed:", error);
-    });
-    // --- END OF SOLUTION ---
-
-} catch (err) {
-    // ... your error handling
-} finally {
-    setLoading(false);
-}
-
+            // 2. NOW that the booking is saved, show the success message to the user.
             setIsSuccessModalOpen(true);
+
+            // 3. Send the email in the background without waiting (fire-and-forget).
+            fetch(`${apiUrl}/api/email/send-confirmation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: user.email,
+                    subject: `Your Flight Booking for "${newBooking.airline}" is Confirmed!`,
+                    bookingDetails: newBooking
+                })
+            }).catch(error => {
+                // Log any email errors for your own records. The user is not affected.
+                console.error("Background email sending failed:", error);
+            });
+
         } catch (err) {
+            // This block will run if the database save (addDoc) fails.
             console.error('Error creating flight booking: ', err);
             setValidationError('Failed to create booking. Please try again.');
         } finally {
+            // This will run regardless of success or failure.
             setLoading(false);
         }
     };
@@ -480,21 +513,42 @@ try {
                                     </div>
                                 </FormSection>
                                 <FormSection title="Passenger Details" icon={<User size={24} />}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div><label htmlFor="firstName-0">First Name</label><input type="text" id="firstName-0" name="firstName" value={passengers[0].firstName} onChange={(e) => handlePassengerChange(0, e)} required /></div>
-                                        <div><label htmlFor="lastName-0">Last Name</label><input type="text" id="lastName-0" name="lastName" value={passengers[0].lastName} onChange={(e) => handlePassengerChange(0, e)} required /></div>
-                                        <div><label htmlFor="gender-0">Gender</label><select id="gender-0" name="gender" value={passengers[0].gender} onChange={(e) => handlePassengerChange(0, e)}><option>Male</option><option>Female</option><option>Other</option></select></div>
-                                        <div><label htmlFor="dob-0">Date of Birth</label><input type="date" id="dob-0" name="dob" value={passengers[0].dob} onChange={(e) => handlePassengerChange(0, e)} required /></div>
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-gray-200">
-                                        <h5 className="font-semibold text-md text-gray-700 mb-3">Passport Information</h5>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div><label htmlFor="passportNumber-0">Passport Number</label><input type="text" id="passportNumber-0" name="passportNumber" value={passengers[0].passportNumber} onChange={(e) => handlePassengerChange(0, e)} required /></div>
-                                            <div><label htmlFor="passportExpiry-0">Expiry Date</label><input type="date" id="passportExpiry-0" name="passportExpiry" value={passengers[0].passportExpiry} onChange={(e) => handlePassengerChange(0, e)} required /></div>
+                                    {/* --- UPDATED: Passenger form now maps over the passengers array --- */}
+                                    {passengers.map((passenger, index) => (
+                                        <div key={index} className={`p-4 border rounded-lg ${index > 0 ? 'mt-6' : ''}`}>
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h4 className="font-semibold text-lg text-gray-700">Passenger {index + 1}</h4>
+                                                {index > 0 && (
+                                                    <button type="button" onClick={() => handleRemovePassenger(index)} className="text-red-500 hover:text-red-700">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div><label htmlFor={`firstName-${index}`}>First Name</label><input type="text" id={`firstName-${index}`} name="firstName" value={passenger.firstName} onChange={(e) => handlePassengerChange(index, e)} required /></div>
+                                                <div><label htmlFor={`lastName-${index}`}>Last Name</label><input type="text" id={`lastName-${index}`} name="lastName" value={passenger.lastName} onChange={(e) => handlePassengerChange(index, e)} required /></div>
+                                                <div><label htmlFor={`gender-${index}`}>Gender</label><select id={`gender-${index}`} name="gender" value={passenger.gender} onChange={(e) => handlePassengerChange(index, e)}><option>Male</option><option>Female</option><option>Other</option></select></div>
+                                                <div><label htmlFor={`dob-${index}`}>Date of Birth</label><input type="date" id={`dob-${index}`} name="dob" value={passenger.dob} onChange={(e) => handlePassengerChange(index, e)} required /></div>
+                                            </div>
+                                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                                <h5 className="font-semibold text-md text-gray-700 mb-3">Passport Information</h5>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div><label htmlFor={`passportNumber-${index}`}>Passport Number</label><input type="text" id={`passportNumber-${index}`} name="passportNumber" value={passenger.passportNumber} onChange={(e) => handlePassengerChange(index, e)} required /></div>
+                                                    <div><label htmlFor={`passportExpiry-${index}`}>Expiry Date</label><input type="date" id={`passportExpiry-${index}`} name="passportExpiry" value={passenger.passportExpiry} onChange={(e) => handlePassengerChange(index, e)} required /></div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={handleAddPassenger}
+                                        className="mt-4 flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-800"
+                                    >
+                                        <PlusCircle size={18} /> Add another passenger
+                                    </button>
                                 </FormSection>
                                 <FormSection title="Select Your Seat" icon={<ShieldCheck size={24} />}>
+                                    <p className="text-sm text-gray-600 mb-4">Please select {passengers.length} seat(s) for your party.</p>
                                     <SeatChart selectedSeats={selectedSeats} onSeatSelect={handleSeatSelect} bookedSeats={bookedSeats} isFlight={true} selectedClass={selectedClass} />
                                 </FormSection>
                             </div>
@@ -507,10 +561,10 @@ try {
                                             <div className="flex justify-between"><span className="text-gray-600">Travel Date:</span><span className="font-semibold text-gray-800">{flightData.date}</span></div>
                                             <div className="flex justify-between"><span className="text-gray-600">From:</span><span className="font-semibold text-gray-800">{flightData.originCity}</span></div>
                                             <div className="flex justify-between"><span className="text-gray-600">To:</span><span className="font-semibold text-gray-800">{flightData.destinationCity}</span></div>
-                                            <div className="flex justify-between"><span className="text-gray-600">Traveler:</span><span className="font-semibold text-gray-800">{passengers.length}</span></div>
+                                            <div className="flex justify-between"><span className="text-gray-600">Travelers:</span><span className="font-semibold text-gray-800">{passengers.length}</span></div>
                                             <div className="flex justify-between"><span className="text-gray-600">Class:</span><span className="font-semibold text-gray-800 capitalize">{selectedClass}</span></div>
                                             <div className="border-t my-4 pt-4 space-y-2">
-                                                <div className="flex justify-between text-sm text-gray-600"><span>Base Fare</span><span>₹{pricePerTraveler.toLocaleString('en-IN')}</span></div>
+                                                <div className="flex justify-between text-sm text-gray-600"><span>Base Fare x {passengers.length}</span><span>₹{(pricePerTraveler * passengers.length).toLocaleString('en-IN')}</span></div>
                                                 <div className="flex justify-between text-sm text-gray-600"><span>{gstLabel} ({gstRate}%)</span><span>+ ₹{gstAmount.toLocaleString('en-IN')}</span></div>
                                                 {discount > 0 && <div className="flex justify-between text-sm text-green-600"><span>Discount</span><span>- ₹{discount.toLocaleString('en-IN')}</span></div>}
                                                 <div className="flex justify-between text-xl mt-2"><span className="text-gray-700 font-semibold">Total Price:</span><span className="font-bold text-blue-600">₹{finalPrice.toLocaleString('en-IN')}</span></div>
