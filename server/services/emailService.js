@@ -1,47 +1,42 @@
 // server/services/emailService.js
 
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+const Brevo = require('@getbrevo/brevo');
 
-// ... (your existing setup code for the SDK)
-const defaultClient = SibApiV3Sdk.ApiClient.instance;
-const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY; 
+// Configure the API key
+const client = Brevo.ApiClient.instance;
+const apiKey = client.authentications['api-key'];
+apiKey.apiKey = process.env.BREVO_API_KEY;
 
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
+const emailApi = new Brevo.TransactionalEmailsApi();
 
 const sendEmail = async (mailOptions) => {
+  console.log("--- FINAL DEBUG CHECK ---");
+  console.log("Using Sender Email:", process.env.EMAIL_USER);
+  const key = process.env.BREVO_API_KEY;
+  console.log("Using API Key (first 10 chars):", key ? key.substring(0, 10) + '...' : 'API Key is UNDEFINED');
 
-    // --- ADD THESE TWO LINES FOR THE FINAL TEST ---
-    console.log("--- FINAL DEBUG CHECK ---");
-    console.log("Using Sender Email:", process.env.EMAIL_USER);
-    const key = process.env.BREVO_API_KEY;
-    console.log("Using API Key (first 10 chars):", key ? key.substring(0, 10) + '...' : 'API Key is UNDEFINED');
-    // ---------------------------------------------
+  try {
+    const sendSmtpEmail = new Brevo.SendSmtpEmail();
 
-    try {
-        // Set the sender
-        sendSmtpEmail.sender = { 
-            name: "TravelEase", 
-            email: process.env.EMAIL_USER
-        };
+    sendSmtpEmail.sender = {
+      name: "TravelEase",
+      email: process.env.EMAIL_USER,
+    };
 
-        // ... (rest of your existing sendEmail function)
-        sendSmtpEmail.to = [{ email: mailOptions.to }];
-        sendSmtpEmail.subject = mailOptions.subject;
-        sendSmtpEmail.htmlContent = mailOptions.htmlContent; // Assuming you pass htmlContent now
-        if (mailOptions.attachments) {
-            sendSmtpEmail.attachment = mailOptions.attachments;
-        }
+    sendSmtpEmail.to = [{ email: mailOptions.to }];
+    sendSmtpEmail.subject = mailOptions.subject;
+    sendSmtpEmail.htmlContent = mailOptions.htmlContent;
 
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`Email sent successfully to ${mailOptions.to} via Brevo.`);
-
-    } catch (error) {
-        console.error(`Error sending email to ${mailOptions.to}:`, error);
-        throw new Error('Failed to send email.');
+    if (mailOptions.attachments) {
+      sendSmtpEmail.attachment = mailOptions.attachments;
     }
+
+    await emailApi.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Email sent successfully to ${mailOptions.to} via Brevo.`);
+  } catch (error) {
+    console.error(`❌ Error sending email to ${mailOptions.to}:`, error.response?.body || error);
+    throw new Error('Failed to send email.');
+  }
 };
 
 module.exports = { sendEmail };
