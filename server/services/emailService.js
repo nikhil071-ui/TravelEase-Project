@@ -1,13 +1,13 @@
 // server/services/emailService.js
 
-const Brevo = require('@getbrevo/brevo');
+const SibApiV3Sdk = require('sib-api-v3-sdk');
 
-// Configure the API key
-const client = Brevo.ApiClient.instance;
-const apiKey = client.authentications['api-key'];
+// Initialize Brevo (SendinBlue) API client
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications['api-key'];
 apiKey.apiKey = process.env.BREVO_API_KEY;
 
-const emailApi = new Brevo.TransactionalEmailsApi();
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const sendEmail = async (mailOptions) => {
   console.log("--- FINAL DEBUG CHECK ---");
@@ -16,22 +16,29 @@ const sendEmail = async (mailOptions) => {
   console.log("Using API Key (first 10 chars):", key ? key.substring(0, 10) + '...' : 'API Key is UNDEFINED');
 
   try {
-    const sendSmtpEmail = new Brevo.SendSmtpEmail();
+    // Create email object
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
+    // Sender info
     sendSmtpEmail.sender = {
       name: "TravelEase",
       email: process.env.EMAIL_USER,
     };
 
+    // Recipient(s)
     sendSmtpEmail.to = [{ email: mailOptions.to }];
+
+    // Subject & content
     sendSmtpEmail.subject = mailOptions.subject;
     sendSmtpEmail.htmlContent = mailOptions.htmlContent;
 
+    // Optional: Attachments
     if (mailOptions.attachments) {
       sendSmtpEmail.attachment = mailOptions.attachments;
     }
 
-    await emailApi.sendTransacEmail(sendSmtpEmail);
+    // Send the email
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Email sent successfully to ${mailOptions.to} via Brevo.`);
   } catch (error) {
     console.error(`❌ Error sending email to ${mailOptions.to}:`, error.response?.body || error);
