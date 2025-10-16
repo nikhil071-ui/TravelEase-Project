@@ -379,19 +379,36 @@ const BookingForm = () => {
                 gstInfo: { type: gstLabel, rate: gstRate, amount: gstAmount },
                 discountInfo: { code: couponCode, amount: discount }
             };
-           // Improved code - Responds instantly
-await addDoc(collection(db, 'bookings'), newBooking);
-setIsSuccessModalOpen(true); // Show success to the user right away!
+// ... inside handleSubmit
+try {
+    const ticketCode = await generateUniqueTicketCode();
+    const newBooking = { /* ... your booking object ... */ };
+    await addDoc(collection(db, 'bookings'), newBooking);
 
-// Send the email in the background. We don't wait for it.
-fetch(`${apiUrl}/api/email/send-confirmation`, { /* ... */ })
-    .then(response => {
-        if (!response.ok) console.error('Background email failed to send.');
-    })
-    .catch(err => {
-        // Log the error for your own records, the user doesn't need to know.
-        console.error('Background email dispatch error:', err);
+    // --- SOLUTION ---
+    // 1. Show success to the user IMMEDIATELY.
+    setIsSuccessModalOpen(true);
+
+    // 2. Send the email in the background. Don't wait for it.
+    fetch(`${apiUrl}/api/email/send-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            to: user.email,
+            subject: `Your Flight Booking for "${newBooking.airline}" is Confirmed!`,
+            bookingDetails: newBooking
+        })
+    }).catch(error => {
+        // If it fails, just log it. The user has already seen the success message.
+        console.error("Background email sending failed:", error);
     });
+    // --- END OF SOLUTION ---
+
+} catch (err) {
+    // ... your error handling
+} finally {
+    setLoading(false);
+}
 
             setIsSuccessModalOpen(true);
         } catch (err) {
