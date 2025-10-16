@@ -2,36 +2,40 @@
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 
-// Configure the Brevo API client
+// ... (your existing setup code for the SDK)
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY; // We will add this to Render
+apiKey.apiKey = process.env.BREVO_API_KEY; 
 
 const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-/**
- * A reusable function to send emails using Brevo.
- * @param {object} mailOptions - The options for the email (to, subject, html).
- */
+
 const sendEmail = async (mailOptions) => {
+
+    // --- ADD THESE TWO LINES FOR THE FINAL TEST ---
+    console.log("--- FINAL DEBUG CHECK ---");
+    console.log("Using Sender Email:", process.env.EMAIL_USER);
+    const key = process.env.BREVO_API_KEY;
+    console.log("Using API Key (first 10 chars):", key ? key.substring(0, 10) + '...' : 'API Key is UNDEFINED');
+    // ---------------------------------------------
+
     try {
         // Set the sender
         sendSmtpEmail.sender = { 
             name: "TravelEase", 
-            email: process.env.EMAIL_USER // This should be the email you verified with Brevo
+            email: process.env.EMAIL_USER
         };
 
-        // Set the recipient(s)
+        // ... (rest of your existing sendEmail function)
         sendSmtpEmail.to = [{ email: mailOptions.to }];
-        
-        // Set email content
         sendSmtpEmail.subject = mailOptions.subject;
-        sendSmtpEmail.htmlContent = mailOptions.html;
+        sendSmtpEmail.htmlContent = mailOptions.htmlContent; // Assuming you pass htmlContent now
+        if (mailOptions.attachments) {
+            sendSmtpEmail.attachment = mailOptions.attachments;
+        }
 
-        // Send the email
         await apiInstance.sendTransacEmail(sendSmtpEmail);
-
         console.log(`Email sent successfully to ${mailOptions.to} via Brevo.`);
 
     } catch (error) {
