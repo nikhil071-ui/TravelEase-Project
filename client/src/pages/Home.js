@@ -61,8 +61,7 @@ const Home = () => {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const response = await fetch(`${apiUrl}/api/locations`);
-        const data = await response.json();
+       const response = await fetch(`${apiUrl}/api/unique-locations`);
         setAllLocations(data);
       } catch (error) {
         console.error('Failed to fetch locations:', error);
