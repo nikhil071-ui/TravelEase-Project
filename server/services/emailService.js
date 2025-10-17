@@ -2,8 +2,17 @@
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (mailOptions) => {
+
+    // --- START: DIAGNOSTIC CHECK ---
+    console.log("--- MAILTRAP DIAGNOSTIC CHECK ---");
+    console.log("Host:", process.env.MAILTRAP_HOST);
+    console.log("Port:", process.env.MAILTRAP_PORT);
+    console.log("User:", process.env.MAILTRAP_USER);
+    const pass = process.env.MAILTRAP_PASS;
+    console.log("Password Exists:", !!pass); // This safely checks if the password is set
+    // --- END: DIAGNOSTIC CHECK ---
+
     try {
-        // Create a transporter using your Mailtrap Sandbox credentials
         const transporter = nodemailer.createTransport({
             host: process.env.MAILTRAP_HOST,
             port: process.env.MAILTRAP_PORT,
@@ -13,12 +22,11 @@ const sendEmail = async (mailOptions) => {
             },
         });
 
-        // Send the email
         const info = await transporter.sendMail({
-            from: '"TravelEase" <noreply@travelease.com>', // This can be any address for testing
+            from: '"TravelEase" <noreply@travelease.com>',
             to: mailOptions.to,
             subject: mailOptions.subject,
-            html: mailOptions.htmlContent, // Make sure your controller provides this
+            html: mailOptions.htmlContent,
             attachments: mailOptions.attachments || []
         });
 
