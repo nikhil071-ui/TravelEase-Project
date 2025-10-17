@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { response } from '../../../server';
 
 const VerifyOTP = () => {
     const [otp, setOtp] = useState('');
@@ -28,10 +27,17 @@ const VerifyOTP = () => {
         return () => clearTimeout(timer);
     }, [resendCooldown]);
 
-    const handleApiCall = async (endpoint, body) => {
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-        // IMPORTANT: Replace with your actual backend API URL
-        const response = await fetch(`${apiUrl}/api/email${endpoint}`, {
+   const handleApiCall = async (endpoint, body) => {
+    // Use an environment variable, with localhost as a backup for development
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+     await fetch(`${apiUrl}/api/email${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
