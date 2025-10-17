@@ -96,19 +96,20 @@ exports.resetPasswordWithOtp = async (req, res) => {
 };
 
 
-// --- Booking Email Functions (No changes needed) ---
 exports.sendBookingConfirmation = async (req, res) => {
     try {
-        const { to, subject, bookingDetails } = req.body;
-        if (!to || !subject || !bookingDetails) {
-            return res.status(400).json({ error: 'Missing required fields.' });
-        }
-        const { htmlBody, attachments } = await generateConfirmationHtml(bookingDetails);
-        await sendEmail({ to, subject, htmlContent: htmlBody, attachments });
-        res.status(200).json({ message: 'Confirmation email sent successfully!' });
+        // This is the object that gets passed to your email service.
+        await sendEmail({
+            to: req.body.to,
+            subject: req.body.subject,
+            bookingDetails: req.body.bookingDetails // <-- ✅ THIS LINE IS THE FIX
+        });
+        
+        res.status(200).json({ message: 'Confirmation email sent successfully.' });
+
     } catch (error) {
-        console.error('Error sending confirmation:', error);
-        res.status(500).send('Failed to send confirmation email.');
+        console.error("Controller Error:", error.message);
+        res.status(500).json({ message: 'Failed to send confirmation email.' });
     }
 };
 
