@@ -94,7 +94,8 @@ const Signup = () => {
 
             // Step 2: Call backend to send the OTP email.
             // RECOMMENDATION: Store this URL in an environment variable (.env file).
-            const response = await fetch('http://localhost:5000/api/email/send-otp', {
+          const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/email/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user.email }),

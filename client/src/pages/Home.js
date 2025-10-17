@@ -62,13 +62,14 @@ const Home = () => {
     const fetchLocations = async () => {
       try {
        const response = await fetch(`${apiUrl}/api/unique-locations`);
+       const data = await response.json();
         setAllLocations(data);
       } catch (error) {
         console.error('Failed to fetch locations:', error);
       }
     };
     fetchLocations();
-  }, []);
+  }, [apiUrl]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
