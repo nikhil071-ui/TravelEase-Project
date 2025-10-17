@@ -56,11 +56,12 @@ const Home = () => {
   const [transportType, setTransportType] = useState('Flights');
   const [allLocations, setAllLocations] = useState([]);
   const [loading, setLoading] = useState(false);
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/locations');
+        const response = await fetch(`${apiUrl}/api/locations`);
         const data = await response.json();
         setAllLocations(data);
       } catch (error) {
