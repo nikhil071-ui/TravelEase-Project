@@ -20,16 +20,19 @@ const generateConfirmationHtml = async (bookingDetails) => {
     let qrCodeAttachment = null;
     let qrCodeHtmlBlock = ''; // Start with an empty block for the QR code
 
-    // --- FIX: Safely generate QR code to prevent crashes ---
     try {
         // Only attempt to generate if ticketCode exists and is a string
         if (bookingDetails.ticketCode && typeof bookingDetails.ticketCode === 'string') {
             const qrCodeBuffer = await qrcode.toBuffer(bookingDetails.ticketCode);
+            
+            // --- FINAL FIX FOR BREVO API ---
             qrCodeAttachment = {
-                filename: 'qrcode.png',
-                content: qrCodeBuffer,
+                name: 'qrcode.png', // Brevo expects the property to be 'name'
+                content: qrCodeBuffer.toString('base64'), // Convert the data to a Base64 string
                 cid: 'qrcode' // This ID links the attachment to the <img> tag
             };
+            // --------------------------------
+
             // If generation is successful, create the HTML block to display it
             qrCodeHtmlBlock = `
                 <div style="text-align: center; margin-top: 30px;">
@@ -46,7 +49,7 @@ const generateConfirmationHtml = async (bookingDetails) => {
         // If it fails, qrCodeHtmlBlock remains empty, and the email will send without it.
     }
 
-    // --- FIX: Safely access passenger and trip data with fallbacks ---
+    // Safely access passenger and trip data with fallbacks
     const passengers = Array.isArray(bookingDetails.passengers) ? bookingDetails.passengers : [];
     const primaryPassenger = passengers[0] || { firstName: 'Valued Customer' };
     
@@ -89,15 +92,12 @@ const generateConfirmationHtml = async (bookingDetails) => {
         
     return {
         htmlBody,
-        // --- FIX: Only include attachments if the QR code was successfully created ---
+        // Only include attachments if the QR code was successfully created
         attachments: qrCodeAttachment ? [qrCodeAttachment] : []
     };
 };
 
-// --- Your generateNotificationHtml function is already safe, no changes needed ---
 const generateNotificationHtml = (type, bookingDetails) => {
-    // ... your existing code ...
-    // This function uses optional chaining (?.) which makes it safe.
     const passengerName = bookingDetails.passengers[0]?.firstName || 'Valued Customer';
     const tripIdentifier = getTripIdentifier(bookingDetails);
     let title, message, color, emoji, subject;
