@@ -2,16 +2,24 @@
 const axios = require('axios');
 
 const sendEmail = async (mailOptions) => {
+    // --- SAFETY CHECK ---
+    // This prevents the "Cannot read properties of undefined" error.
+    if (!mailOptions.bookingDetails) {
+        console.error("❌ Error: bookingDetails is missing from mailOptions.");
+        throw new Error("Cannot send email without booking details.");
+    }
+    
     const booking = mailOptions.bookingDetails;
     
     // This is the data that will be sent to Formspree
     const formData = {
         To: mailOptions.to,
         Subject: mailOptions.subject,
-        Passenger: `${booking.passengers[0].firstName} ${booking.passengers[0].lastName}`,
-        Trip: `${booking.origin} to ${booking.destination}`,
-        Airline: booking.airline,
-        Ticket_Code: booking.ticketCode,
+        // Using optional chaining (?.) for extra safety
+        Passenger: `${booking.passengers?.[0]?.firstName || ''} ${booking.passengers?.[0]?.lastName || ''}`,
+        Trip: `${booking.origin || 'N/A'} to ${booking.destination || 'N/A'}`,
+        Airline: booking.airline || 'N/A',
+        Ticket_Code: booking.ticketCode || 'N/A',
     };
 
     try {
