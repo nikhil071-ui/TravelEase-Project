@@ -1,38 +1,30 @@
 // server/services/emailService.js
-const axios = require('axios');
+const nodemailer = require('nodemailer');
 
 const sendEmail = async (mailOptions) => {
-    // --- SAFETY CHECK ---
-    // This prevents the "Cannot read properties of undefined" error.
-    if (!mailOptions.bookingDetails) {
-        console.error("❌ Error: bookingDetails is missing from mailOptions.");
-        throw new Error("Cannot send email without booking details.");
-    }
-    
-    const booking = mailOptions.bookingDetails;
-    
-    // This is the data that will be sent to Formspree
-    const formData = {
-        To: mailOptions.to,
-        Subject: mailOptions.subject,
-        // Using optional chaining (?.) for extra safety
-        Passenger: `${booking.passengers?.[0]?.firstName || ''} ${booking.passengers?.[0]?.lastName || ''}`,
-        Trip: `${booking.origin || 'N/A'} to ${booking.destination || 'N/A'}`,
-        Airline: booking.airline || 'N/A',
-        Ticket_Code: booking.ticketCode || 'N/A',
-    };
-
     try {
-        console.log("Attempting to send email via Formspree...");
-
-        await axios.post(process.env.FORMSPREE_ENDPOINT, formData, {
-            headers: { 'Accept': 'application/json' }
+        // This transporter connects directly to Gmail using your App Password
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.GMAIL_USER,       // Your full Gmail address
+                pass: process.env.GMAIL_APP_PASSWORD, // The 16-character App Password
+            },
         });
 
-        console.log(`✅ Email sent successfully to ${mailOptions.to} via Formspree.`);
+        // Send the email
+        await transporter.sendMail({
+            from: `"TravelEase" <${process.env.GMAIL_USER}>`,
+            to: mailOptions.to,
+            subject: mailOptions.subject,
+            html: mailOptions.htmlContent,
+            attachments: mailOptions.attachments || []
+        });
+
+        console.log(`✅ Email sent successfully to ${mailOptions.to} via Gmail.`);
 
     } catch (error) {
-        console.error(`❌ Error sending email via Formspree:`, error);
+        console.error(`❌ Error sending email to ${mailOptions.to}:`, error);
         throw new Error('Failed to send email.');
     }
 };

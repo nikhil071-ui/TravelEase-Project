@@ -3,23 +3,18 @@ const { sendEmail } = require('../services/emailService');
 const { generateConfirmationHtml, generateNotificationHtml } = require('../bookingTemplates');
 
 // --- NEW: Initialize Firestore ---
-// This gives us access to the database.
 const db = admin.firestore();
 
-// --- DELETED: The old otpStore is no longer needed. ---
-// const otpStore = {}; 
-
-// --- UPDATED: `sendOtp` now saves to Firestore ---
+// --- Firestore OTP Functions (These are now correct and persistent) ---
 exports.sendOtp = async (req, res) => {
     const { email } = req.body;
     if (!email) {
         return res.status(400).json({ message: 'Email is required' });
     }
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000; // Expiry time in milliseconds
+    const expires = Date.now() + 5 * 60 * 1000; // 5 minute expiry
 
     try {
-        // Save the OTP to a document in the 'otps' collection, using the email as the document ID.
         const otpRef = db.collection('otps').doc(email);
         await otpRef.set({ otp, expires });
 
@@ -35,59 +30,43 @@ exports.sendOtp = async (req, res) => {
     }
 };
 
-// --- UPDATED: `verifyOtp` now checks Firestore ---
 exports.verifyOtp = async (req, res) => {
     const { email, otp, usage } = req.body;
     if (!email || !otp) {
         return res.status(400).json({ message: 'Email and OTP are required' });
     }
-
     const otpRef = db.collection('otps').doc(email);
     const docSnap = await otpRef.get();
 
-    if (!docSnap.exists) {
-        return res.status(400).json({ message: 'OTP is invalid or has expired.' });
-    }
-
-    const stored = docSnap.data();
-    if (stored.otp !== otp || Date.now() > stored.expires) {
-        await otpRef.delete(); // Clean up expired/invalid OTP
+    if (!docSnap.exists || docSnap.data().otp !== otp || Date.now() > docSnap.data().expires) {
+        if (docSnap.exists) await otpRef.delete();
         return res.status(400).json({ message: 'OTP is invalid or has expired.' });
     }
 
     if (usage === 'signup') {
-        await otpRef.delete(); // OTP is single-use for signup
+        await otpRef.delete();
     }
     
     res.status(200).json({ message: 'OTP verified successfully' });
 };
 
-// --- UPDATED: `resetPasswordWithOtp` now checks and deletes from Firestore ---
 exports.resetPasswordWithOtp = async (req, res) => {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword) {
         return res.status(400).json({ message: 'Email, OTP, and new password are required.' });
     }
-
     const otpRef = db.collection('otps').doc(email);
     const docSnap = await otpRef.get();
 
-    if (!docSnap.exists) {
-        return res.status(400).json({ message: 'Invalid or expired OTP. Please start over.' });
-    }
-    
-    const stored = docSnap.data();
-    if (stored.otp !== otp || Date.now() > stored.expires) {
-        await otpRef.delete(); // Clean up
+    if (!docSnap.exists || docSnap.data().otp !== otp || Date.now() > docSnap.data().expires) {
+        if (docSnap.exists) await otpRef.delete();
         return res.status(400).json({ message: 'Invalid or expired OTP. Please start over.' });
     }
 
     try {
         const userRecord = await admin.auth().getUserByEmail(email);
         await admin.auth().updateUser(userRecord.uid, { password: newPassword });
-        
-        await otpRef.delete(); // OTP is single-use, delete it after successful password reset
-        
+        await otpRef.delete();
         res.status(200).json({ message: 'Password has been reset successfully.' });
     } catch (error) {
         console.error("Error resetting password:", error);
@@ -95,21 +74,26 @@ exports.resetPasswordWithOtp = async (req, res) => {
     }
 };
 
+// --- Booking Email Functions ---
 
 exports.sendBookingConfirmation = async (req, res) => {
     try {
-        // This is the object that gets passed to your email service.
-        await sendEmail({
-            to: req.body.to,
-            subject: req.body.subject,
-            bookingDetails: req.body.bookingDetails // <-- ✅ THIS LINE IS THE FIX
-        });
+        const { to, subject, bookingDetails } = req.body;
+        if (!to || !subject || !bookingDetails) {
+            return res.status(400).json({ error: 'Missing required fields.' });
+        }
         
-        res.status(200).json({ message: 'Confirmation email sent successfully.' });
+        // --- FIX: Use the template to generate the email content first ---
+        const { htmlBody, attachments } = await generateConfirmationHtml(bookingDetails);
+        
+        // --- FIX: Pass the generated content to the email service ---
+        await sendEmail({ to, subject, htmlContent: htmlBody, attachments });
+        
+        res.status(200).json({ message: 'Confirmation email sent successfully!' });
 
     } catch (error) {
-        console.error("Controller Error:", error.message);
-        res.status(500).json({ message: 'Failed to send confirmation email.' });
+        console.error('Error sending confirmation:', error);
+        res.status(500).send('Failed to send confirmation email.');
     }
 };
 
