@@ -27,10 +27,9 @@ const generateConfirmationHtml = async (bookingDetails) => {
             
             // --- FINAL FIX FOR BREVO API ---
             qrCodeAttachment = {
-                name: 'qrcode.png', // Brevo expects the property to be 'name'
-                content: qrCodeBuffer.toString('base64'), // Convert the data to a Base64 string
-                cid: 'qrcode' // This ID links the attachment to the <img> tag
-            };
+    name: 'qrcode.png', // Brevo will use this filename as the cid
+    content: qrCodeBuffer.toString('base64')
+};
             // --------------------------------
 
             // If generation is successful, create the HTML block to display it
@@ -39,7 +38,7 @@ const generateConfirmationHtml = async (bookingDetails) => {
                     <h3 style="color: #333; margin-bottom: 12px;">🎫 Your Ticket</h3>
                     <p style="margin: 0 0 12px;">Scan this QR code at check-in:</p>
                     <div style="padding: 15px; background: #fff; display: inline-block; border-radius: 12px; border: 1px solid #ddd; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
-                        <img src="cid:qrcode" alt="QR Code" style="width: 140px; height: 140px;"/>
+                        <img src="cid:qrcode.png" alt="QR Code" style="width: 140px; height: 140px;"/>
                     </div>
                     <p style="font-size: 1.15em; margin-top: 14px;">Ticket Code:<br><strong style="letter-spacing: 2px; color: #0062e6; font-size: 1.2em;">${bookingDetails.ticketCode}</strong></p>
                 </div>`;
