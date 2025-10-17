@@ -1,49 +1,33 @@
 // server/services/emailService.js
-
-const SibApiV3Sdk = require('sib-api-v3-sdk');
-
-// Initialize Brevo (SendinBlue) API client
-const defaultClient = SibApiV3Sdk.ApiClient.instance;
-const apiKey = defaultClient.authentications['api-key'];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+const nodemailer = require('nodemailer');
 
 const sendEmail = async (mailOptions) => {
-  console.log("--- FINAL DEBUG CHECK ---");
-  console.log("Using Sender Email:", process.env.EMAIL_USER);
-  const key = process.env.BREVO_API_KEY;
-  console.log("Using API Key (first 10 chars):", key ? key.substring(0, 10) + '...' : 'API Key is UNDEFINED');
+    try {
+        // Create a transporter using your Mailtrap Sandbox credentials
+        const transporter = nodemailer.createTransport({
+            host: process.env.MAILTRAP_HOST,
+            port: process.env.MAILTRAP_PORT,
+            auth: {
+                user: process.env.MAILTRAP_USER,
+                pass: process.env.MAILTRAP_PASS,
+            },
+        });
 
-  try {
-    // Create email object
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        // Send the email
+        const info = await transporter.sendMail({
+            from: '"TravelEase" <noreply@travelease.com>', // This can be any address for testing
+            to: mailOptions.to,
+            subject: mailOptions.subject,
+            html: mailOptions.htmlContent, // Make sure your controller provides this
+            attachments: mailOptions.attachments || []
+        });
 
-    // Sender info
-    sendSmtpEmail.sender = {
-      name: "TravelEase",
-      email: process.env.EMAIL_USER,
-    };
+        console.log(`✅ Email successfully trapped in Mailtrap. Message ID: ${info.messageId}`);
 
-    // Recipient(s)
-    sendSmtpEmail.to = [{ email: mailOptions.to }];
-
-    // Subject & content
-    sendSmtpEmail.subject = mailOptions.subject;
-    sendSmtpEmail.htmlContent = mailOptions.htmlContent;
-
-    // Optional: Attachments
-    if (mailOptions.attachments) {
-      sendSmtpEmail.attachment = mailOptions.attachments;
+    } catch (error) {
+        console.error(`❌ Error sending email to ${mailOptions.to}:`, error);
+        throw new Error('Failed to send email.');
     }
-
-    // Send the email
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log(`✅ Email sent successfully to ${mailOptions.to} via Brevo.`);
-  } catch (error) {
-    console.error(`❌ Error sending email to ${mailOptions.to}:`, error.response?.body || error);
-    throw new Error('Failed to send email.');
-  }
 };
 
 module.exports = { sendEmail };
