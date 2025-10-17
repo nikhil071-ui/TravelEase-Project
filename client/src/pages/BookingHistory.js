@@ -205,31 +205,50 @@ const BookingHistory = () => {
         setBookingToCancel(null);
     };
     
-    const confirmCancelBooking = async () => { /* ... existing logic ... */
-        if (!bookingToCancel || !user) {
-            alert("Error: No booking selected for cancellation.");
-            return;
+    const confirmCancelBooking = async () => {
+    if (!bookingToCancel || !user) {
+        alert("Error: No booking selected for cancellation.");
+        return;
+    }
+    
+    // Use an environment variable for the API URL
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const bookingToUpdate = { ...bookingToCancel };
+    handleCancelModalClose();
+    
+    const bookingDocRef = doc(db, 'bookings', bookingToUpdate.id);
+
+    try {
+        // Step 1: Update the document in Firestore
+        await updateDoc(bookingDocRef, { status: 'canceled_by_user' });
+        
+        // Step 2: Try to send the notification email
+        const emailResponse = await fetch(`${apiUrl}/api/email/send-notification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: user.email,
+                type: 'canceled',
+                bookingDetails: bookingToUpdate
+            })
+        });
+
+        // Check if the email was sent successfully
+        if (!emailResponse.ok) {
+            // This is not a critical error, so we just log it and inform the user
+            console.error("Failed to send cancellation email, but booking was cancelled.");
+            alert("Booking was cancelled successfully, but we failed to send the notification email.");
+        } else {
+            alert("Booking cancelled successfully!");
         }
-        const bookingToUpdate = { ...bookingToCancel };
-        handleCancelModalClose();
-        const bookingDocRef = doc(db, 'bookings', bookingToUpdate.id);
-        try {
-            await updateDoc(bookingDocRef, { status: 'canceled_by_user' });
-            await fetch('http://localhost:5000/api/email/send-notification', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    to: user.email,
-                    subject: `Your Booking for ${bookingToUpdate.destination || bookingToUpdate.tourName} Has Been Canceled`,
-                    type: 'canceled',
-                    bookingDetails: bookingToUpdate
-                })
-            });
-        } catch (error) {
-            console.error("Error during cancellation process:", error);
-            alert("Failed to cancel booking. Please try again.");
-        }
-    };
+
+    } catch (error) {
+        // This catch block now handles critical failures (like Firestore being down)
+        console.error("Error during cancellation process:", error);
+        // We add a message to inform the user that the primary action might have failed
+        alert("A critical error occurred. The booking may not have been canceled. Please refresh and try again.");
+    }
+};
 
     const handleViewTicket = (booking) => { /* ... existing logic ... */
         setSelectedBooking(booking);
