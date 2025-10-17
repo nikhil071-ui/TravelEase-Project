@@ -27,29 +27,24 @@ const VerifyOTP = () => {
         return () => clearTimeout(timer);
     }, [resendCooldown]);
 
-   const handleApiCall = async (endpoint, body) => {
+  const handleApiCall = async (endpoint, body) => {
     // Use an environment variable, with localhost as a backup for development
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-     await fetch(`${apiUrl}/api/email${endpoint}`, {
+    // This is the single, correct API call
+    const response = await fetch(`${apiUrl}/api/email${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-        
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
 
-        const data = await response.json();
+    const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.message || 'An error occurred.');
-        }
-        return data;
-    };
+    if (!response.ok) {
+        throw new Error(data.message || 'An error occurred.');
+    }
+    return data;
+};
 
     const handleSubmit = async (e) => {
         e.preventDefault();
